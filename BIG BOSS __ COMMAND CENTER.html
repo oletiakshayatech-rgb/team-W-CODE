@@ -3,8 +3,30 @@
 <link href="https://fonts.googleapis.com/css2?family=Orbitron:wght@500;700;900&family=JetBrains+Mono:wght@400;600&family=Inter:wght@400;600&display=swap" rel="stylesheet">
 <style>
 :root{--bg:#05070b;--pn:rgba(14,18,26,.78);--ln:rgba(140,170,200,.16);--tx:#e6ecf2;--mu:#7d8a99;--cy:#38e1ff;--rd:#e0203c;--vi:#8a6bff;--gd:#d9b86a;box-sizing:border-box;padding-top:env(safe-area-inset-top,0);padding-bottom:env(safe-area-inset-bottom,0)}
+
+/* RBAC THEME COLORS */
+:root{--rb-gold:#d9b86a;--rb-gold-dim:rgba(217,184,106,.15);--rb-cyan:#38e1ff;--rb-cyan-dim:rgba(56,225,255,.15);--rb-crimson:#e0203c;--rb-crimson-dim:rgba(224,32,60,.15);--rb-blue:#4da6ff;--rb-blue-dim:rgba(77,166,255,.15);--rb-amber:#f0a030;--rb-amber-dim:rgba(240,160,48,.15);--rb-violet:#8a6bff;--rb-violet-dim:rgba(138,107,255,.15);--rb-silver:#7d8a99;--rb-silver-dim:rgba(125,138,153,.15);
+--rb-bigboss:#d9b86a;--rb-housemgr:#38e1ff;--rb-nomoff:#e0203c;--rb-survoff:#4da6ff;--rb-taskmaster:#f0a030;--rb-capoff:#8a6bff;--rb-viewer:#7d8a99}
 *{box-sizing:border-box}html,body{height:100%;margin:0}
 body{background:radial-gradient(900px 500px at 70% -10%,rgba(138,107,255,.14),transparent),radial-gradient(700px 500px at 0 100%,rgba(56,225,255,.08),transparent),var(--bg);color:var(--tx);font:14px Inter,system-ui,sans-serif;overflow:hidden}
+
+/* RBAC COMPONENTS */
+.rbac-badge{display:inline-flex;align-items:center;gap:6px;padding:4px 10px;border-radius:4px;font:600 10px 'JetBrains Mono';letter-spacing:.12em;text-transform:uppercase;border:1px solid;animation:br 0.4s ease-out}
+@keyframes br{from{transform:scale(0.8);opacity:0}to{transform:scale(1);opacity:1}}
+.rbac-role-dot{width:8px;height:8px;border-radius:50%;animation:pd 2s infinite}
+@keyframes pd{50%{opacity:.4;transform:scale(0.8)}}
+.rbac-lock{cursor:not-allowed;opacity:.5;pointer-events:none}
+.rbac-locked-state{background:var(--pn);border:1px solid var(--ln);border-left:3px solid var(--rd);padding:16px;backdrop-filter:blur(8px);text-align:center}
+.rbac-protected-input{border-color:var(--ln);background:#0b0f16;color:var(--mu);cursor:not-allowed}
+.rbac-toast-role{font-family:'JetBrains Mono';font-size:11px;letter-spacing:.1em;padding:2px 6px;border-radius:2px;margin-right:6px}
+#rbac-panel{position:fixed;inset:0;z-index:200;display:none;place-items:center;background:rgba(2,4,8,.85);backdrop-filter:blur(12px);padding:20px}
+#rbac-panel.on{display:grid}
+#rbac-box{width:min(420px,100%);max-height:90vh;overflow:auto}
+.rbac-perm-list{display:grid;gap:4px;font:11px 'JetBrains Mono'}
+.rbac-perm-allowed{color:var(--cy);text-shadow:0 0 8px rgba(56,225,255,.3)}
+.rbac-perm-denied{color:var(--mu);text-decoration:line-through;opacity:.5}
+.rbac-operator-card{background:var(--pn);border:1px solid var(--ln);padding:14px;margin-bottom:10px}
+.rbac-section-title{font:600 10px 'JetBrains Mono';letter-spacing:.18em;color:var(--mu);text-transform:uppercase;margin-bottom:10px;padding-bottom:6px;border-bottom:1px solid var(--ln)}
 body:before{content:"";position:fixed;inset:0;pointer-events:none;background:linear-gradient(rgba(255,255,255,.03) 1px,transparent 1px),linear-gradient(90deg,rgba(255,255,255,.03) 1px,transparent 1px);background-size:44px 44px;z-index:0}
 body:after{content:"";position:fixed;inset:0;pointer-events:none;background:repeating-linear-gradient(0deg,rgba(0,0,0,.18) 0 1px,transparent 1px 3px),radial-gradient(circle,transparent 55%,rgba(0,0,0,.6));z-index:90}
 .m{font-family:'JetBrains Mono',monospace}.o{font-family:Orbitron,sans-serif;letter-spacing:.16em;text-transform:uppercase}
@@ -82,6 +104,1035 @@ table{width:100%;border-collapse:collapse}th{text-align:left}th,td{padding:10px 
 <div id="app"><div id="top"></div><nav id="side"></nav><main id="main"></main><aside id="logp"></aside></div>
 <div id="bc"></div><div id="xo"></div><div id="cv"></div><div id="md"><div id="mb" class="pn"></div></div><div id="ts"></div>
 <script>
+// ============================================
+// RBAC - ROLE-BASED ACCESS CONTROL SYSTEM
+// ============================================
+
+const RBAC_CONFIG = {
+  STORAGE_KEY: 'bbcc_rbac_v1',
+  DEMO_MODE_KEY: 'bbcc_demo_role_v1',
+  
+  // Define all available permissions
+  PERMISSIONS: {
+    // Dashboard & Navigation
+    VIEW_DASHBOARD: 'View overview dashboard',
+    VIEW_CONTESTANTS: 'View contestants list',
+    VIEW_TASKS: 'View tasks panel',
+    VIEW_NOMINATIONS: 'View nominations module',
+    VIEW_CAPTAINCY: 'View captaincy module',
+    VIEW_IMMUNITY: 'View immunity control',
+    VIEW_ANNOUNCEMENTS: 'View announcements',
+    VIEW_SYSTEM_LOG: 'View system logs',
+    VIEW_CCTV: 'View CCTV surveillance',
+    VIEW_AUDIT_LOG: 'View security audit log',
+    VIEW_LEADERBOARD: 'View leaderboard',
+    VIEW_ALERTS: 'View house alerts',
+    VIEW_ACCESS_CONTROL: 'View access control panel',
+    
+    // Contestant Management
+    MANAGE_CONTESTANTS: 'Add, edit, remove contestants',
+    VIEW_CONTESTANT_DETAILS: 'View individual contestant details',
+    
+    // Points Control
+    VIEW_POINTS: 'View contestant points',
+    MANAGE_POINTS: 'Add or deduct points',
+    
+    // Task Control
+    MANAGE_TASKS: 'Create, edit, delete tasks',
+    START_TASK: 'Start tasks',
+    PAUSE_TASK: 'Pause tasks',
+    COMPLETE_TASK: 'Complete tasks',
+    CONTROL_TASK_TIMER: 'Control task timer',
+    ASSIGN_TASK: 'Assign tasks to contestants',
+    VIEW_TASK_CCTV: 'View task-related CCTV',
+    
+    // Nomination Control
+    MANAGE_NOMINATIONS: 'Start, stop, manage nominations',
+    START_NOMINATION: 'Start nomination protocol',
+    STOP_NOMINATION: 'Stop nomination protocol',
+    NOMINATE_CONTESTANT: 'Nominate contestants',
+    REMOVE_NOMINATION: 'Remove nominations',
+    VIEW_NOMINATION_CCTV: 'View nomination-related CCTV',
+    VIEW_NOMINATION_HISTORY: 'View nomination history',
+    VIEW_DANGER_ZONE: 'View danger zone',
+    
+    // Immunity Control
+    MANAGE_IMMUNITY: 'Grant and revoke immunity',
+    GRANT_IMMUNITY: 'Grant immunity to contestants',
+    REVOKE_IMMUNITY: 'Revoke immunity from contestants',
+    OVERRIDE_GAME_RULE: 'Override game rules (BIG BOSS only)',
+    
+    // Captaincy Control
+    MANAGE_CAPTAINCY: 'Assign and change captaincy',
+    ASSIGN_CAPTAIN: 'Assign house captain',
+    VIEW_CAPTAIN_HISTORY: 'View captain history',
+    VIEW_CAPTAIN_CCTV: 'View captain area CCTV',
+    
+    // CCTV Control
+    VIEW_CCTV: 'View CCTV feeds',
+    CONTROL_CCTV: 'Control CCTV cameras',
+    VIEW_SECURITY_ALERTS: 'View security alerts',
+    TRIGGER_SURVEILLANCE_ALERTS: 'Trigger simulated alerts',
+    VIEW_CAMERA_STATUS: 'View camera status panel',
+    VIEW_FLOOR_PLAN: 'View house floor plan',
+    VIEW_CONTESTANT_LOCATIONS: 'View contestant locations on floor plan',
+    
+    // Announcements
+    SEND_ANNOUNCEMENT: 'Send announcements',
+    SEND_TASK_ANNOUNCEMENT: 'Send task-related announcements',
+    SEND_NOMINATION_ANNOUNCEMENT: 'Send nomination protocol announcements',
+    
+    // Critical Operations
+    EVICT_CONTESTANT: 'Evict contestants from house',
+    RESET_HOUSE: 'Reset entire house state',
+    VIEW_EVICTION_PROTOCOL: 'View eviction protocol interface',
+    
+    // System & Audit
+    VIEW_SYSTEM_LOG: 'View system logs',
+    VIEW_AUDIT_LOG: 'View security audit log',
+    
+    // User & Role Management
+    MANAGE_USERS: 'Manage user accounts',
+    MANAGE_ROLES: 'Manage roles and permissions',
+    MANAGE_PERMISSIONS: 'Manage permission assignments',
+    VIEW_PERMISSION_INSPECTOR: 'View permission inspector',
+    VIEW_ACTIVE_OPERATORS: 'View active operators',
+    VIEW_DENIED_ATTEMPTS: 'View denied access attempts',
+    
+    // House Operations
+    VIEW_HOUSE_STATUS: 'View house operational status',
+    SWITCH_HOUSE_STATE: 'Switch house operational state',
+  },
+  
+  // Define roles with their permissions
+  ROLES: {
+    BIG_BOSS: {
+      id: 'BIG_BOSS',
+      name: 'BIG BOSS',
+      color: 'var(--rb-gold)',
+      bgColor: 'var(--rb-bigboss)',
+      dotColor: '#d9b86a',
+      accessLevel: 'FULL COMMAND',
+      description: 'Complete authority over all systems',
+      permissions: Object.keys(RBAC_CONFIG.PERMISSIONS),
+      canOverrideGameRules: true,
+    },
+    HOUSE_MANAGER: {
+      id: 'HOUSE_MANAGER',
+      name: 'HOUSE MANAGER',
+      color: 'var(--rb-cyan)',
+      bgColor: 'var(--rb-housemgr)',
+      dotColor: '#38e1ff',
+      accessLevel: 'HOUSE OPERATIONS',
+      description: 'Manages daily house operations',
+      permissions: [
+        'VIEW_DASHBOARD',
+        'VIEW_CONTESTANTS',
+        'VIEW_CONTESTANT_DETAILS',
+        'MANAGE_CONTESTANTS',
+        'VIEW_POINTS',
+        'MANAGE_POINTS',
+        'VIEW_TASKS',
+        'MANAGE_TASKS',
+        'START_TASK',
+        'COMPLETE_TASK',
+        'CONTROL_TASK_TIMER',
+        'ASSIGN_TASK',
+        'VIEW_CAPTAINCY',
+        'ASSIGN_CAPTAIN',
+        'VIEW_IMMUNITY',
+        'VIEW_ANNOUNCEMENTS',
+        'VIEW_SYSTEM_LOG',
+        'VIEW_CCTV',
+        'VIEW_FLOOR_PLAN',
+        'VIEW_CONTESTANT_LOCATIONS',
+        'VIEW_CAMERA_STATUS',
+        'VIEW_LEADERBOARD',
+        'VIEW_HOUSE_STATUS',
+      ],
+      canOverrideGameRules: false,
+    },
+    NOMINATION_OFFICER: {
+      id: 'NOMINATION_OFFICER',
+      name: 'NOMINATION OFFICER',
+      color: 'var(--rb-crimson)',
+      bgColor: 'var(--rb-nomoff)',
+      dotColor: '#e0203c',
+      accessLevel: 'NOMINATION CONTROL',
+      description: 'Responsible for nomination operations',
+      permissions: [
+        'VIEW_DASHBOARD',
+        'VIEW_CONTESTANTS',
+        'VIEW_CONTESTANT_DETAILS',
+        'VIEW_NOMINATIONS',
+        'MANAGE_NOMINATIONS',
+        'START_NOMINATION',
+        'STOP_NOMINATION',
+        'NOMINATE_CONTESTANT',
+        'REMOVE_NOMINATION',
+        'VIEW_IMMUNITY',
+        'VIEW_DANGER_ZONE',
+        'VIEW_NOMINATION_HISTORY',
+        'VIEW_NOMINATION_CCTV',
+        'VIEW_CCTV',
+        'VIEW_SYSTEM_LOG',
+        'VIEW_LEADERBOARD',
+        'SEND_NOMINATION_ANNOUNCEMENT',
+        'VIEW_HOUSE_STATUS',
+      ],
+      canOverrideGameRules: false,
+    },
+    SURVEILLANCE_OFFICER: {
+      id: 'SURVEILLANCE_OFFICER',
+      name: 'SURVEILLANCE OFFICER',
+      color: 'var(--rb-blue)',
+      bgColor: 'var(--rb-survoff)',
+      dotColor: '#4da6ff',
+      accessLevel: 'CCTV CONTROL',
+      description: 'Responsible for house monitoring',
+      permissions: [
+        'VIEW_DASHBOARD',
+        'VIEW_CCTV',
+        'CONTROL_CCTV',
+        'VIEW_SECURITY_ALERTS',
+        'TRIGGER_SURVEILLANCE_ALERTS',
+        'VIEW_CAMERA_STATUS',
+        'VIEW_FLOOR_PLAN',
+        'VIEW_CONTESTANT_LOCATIONS',
+        'VIEW_SYSTEM_LOG',
+        'VIEW_ALERTS',
+        'VIEW_CONTESTANTS',
+        'VIEW_CONTESTANT_DETAILS',
+        'VIEW_POINTS',
+        'VIEW_LEADERBOARD',
+        'VIEW_HOUSE_STATUS',
+      ],
+      canOverrideGameRules: false,
+    },
+    TASK_MASTER: {
+      id: 'TASK_MASTER',
+      name: 'TASK MASTER',
+      color: 'var(--rb-amber)',
+      bgColor: 'var(--rb-taskmaster)',
+      dotColor: '#f0a030',
+      accessLevel: 'TASK CONTROL',
+      description: 'Responsible for task operations',
+      permissions: [
+        'VIEW_DASHBOARD',
+        'VIEW_TASKS',
+        'MANAGE_TASKS',
+        'CREATE_TASK',
+        'EDIT_TASK',
+        'DELETE_TASK',
+        'START_TASK',
+        'PAUSE_TASK',
+        'COMPLETE_TASK',
+        'CONTROL_TASK_TIMER',
+        'ASSIGN_TASK',
+        'VIEW_TASK_CCTV',
+        'VIEW_CCTV',
+        'SEND_TASK_ANNOUNCEMENT',
+        'VIEW_SYSTEM_LOG',
+        'VIEW_POINTS',
+        'VIEW_CONTESTANTS',
+        'VIEW_CONTESTANT_DETAILS',
+        'VIEW_LEADERBOARD',
+        'VIEW_HOUSE_STATUS',
+      ],
+      canOverrideGameRules: false,
+    },
+    CAPTAINCY_OFFICER: {
+      id: 'CAPTAINCY_OFFICER',
+      name: 'CAPTAINCY OFFICER',
+      color: 'var(--rb-violet)',
+      bgColor: 'var(--rb-capoff)',
+      dotColor: '#8a6bff',
+      accessLevel: 'CAPTAINCY CONTROL',
+      description: 'Responsible for captaincy operations',
+      permissions: [
+        'VIEW_DASHBOARD',
+        'VIEW_CONTESTANTS',
+        'VIEW_CONTESTANT_DETAILS',
+        'VIEW_CAPTAINCY',
+        'MANAGE_CAPTAINCY',
+        'ASSIGN_CAPTAIN',
+        'VIEW_CAPTAIN_HISTORY',
+        'VIEW_CAPTAIN_CCTV',
+        'VIEW_CCTV',
+        'VIEW_SYSTEM_LOG',
+        'VIEW_LEADERBOARD',
+        'VIEW_HOUSE_STATUS',
+      ],
+      canOverrideGameRules: false,
+    },
+    VIEWER: {
+      id: 'VIEWER',
+      name: 'VIEWER',
+      color: 'var(--rb-silver)',
+      bgColor: 'var(--rb-viewer)',
+      dotColor: '#7d8a99',
+      accessLevel: 'READ ONLY',
+      description: 'Read-only access to house status',
+      permissions: [
+        'VIEW_DASHBOARD',
+        'VIEW_CONTESTANTS',
+        'VIEW_TASKS',
+        'VIEW_NOMINATIONS',
+        'VIEW_CAPTAINCY',
+        'VIEW_IMMUNITY',
+        'VIEW_ANNOUNCEMENTS',
+        'VIEW_SYSTEM_LOG',
+        'VIEW_CCTV',
+        'VIEW_LEADERBOARD',
+        'VIEW_ALERTS',
+        'VIEW_HOUSE_STATUS',
+        'VIEW_POINTS',
+      ],
+      canOverrideGameRules: false,
+      isReadOnly: true,
+    },
+  },
+  
+  // Role colors for UI
+  ROLE_COLORS: {
+    BIG_BOSS: { primary: '#d9b86a', glow: 'rgba(217,184,106,.4)', dim: 'rgba(217,184,106,.15)' },
+    HOUSE_MANAGER: { primary: '#38e1ff', glow: 'rgba(56,225,255,.4)', dim: 'rgba(56,225,255,.15)' },
+    NOMINATION_OFFICER: { primary: '#e0203c', glow: 'rgba(224,32,60,.4)', dim: 'rgba(224,32,60,.15)' },
+    SURVEILLANCE_OFFICER: { primary: '#4da6ff', glow: 'rgba(77,166,255,.4)', dim: 'rgba(77,166,255,.15)' },
+    TASK_MASTER: { primary: '#f0a030', glow: 'rgba(240,160,48,.4)', dim: 'rgba(240,160,48,.15)' },
+    CAPTAINCY_OFFICER: { primary: '#8a6bff', glow: 'rgba(138,107,255,.4)', dim: 'rgba(138,107,255,.15)' },
+    VIEWER: { primary: '#7d8a99', glow: 'rgba(125,138,153,.4)', dim: 'rgba(125,138,153,.15)' },
+  },
+  
+  // Page-level access mapping
+  PAGE_PERMISSIONS: {
+    overview: 'VIEW_DASHBOARD',
+    contestants: 'VIEW_CONTESTANTS',
+    leaderboard: 'VIEW_LEADERBOARD',
+    tasks: 'VIEW_TASKS',
+    nominations: 'VIEW_NOMINATIONS',
+    immunity: 'VIEW_IMMUNITY',
+    captaincy: 'VIEW_CAPTAINCY',
+    announcements: 'VIEW_ANNOUNCEMENTS',
+    syslog: 'VIEW_SYSTEM_LOG',
+    cctv: 'VIEW_CCTV',
+    alerts: 'VIEW_ALERTS',
+    accesscontrol: 'VIEW_ACCESS_CONTROL',
+    auditlog: 'VIEW_AUDIT_LOG',
+  },
+  
+  // Operator users for demo
+  OPERATORS: {
+    AKSHAYA: { id: 'AKSHAYA', name: 'Akshaya', email: 'akshaya@bigbossprotocol.com' },
+    VIKRAM: { id: 'VIKRAM', name: 'Vikram', email: 'vikram@bigbossprotocol.com' },
+    PRIYA: { id: 'PRIYA', name: 'Priya', email: 'priya@bigbossprotocol.com' },
+    RAJESH: { id: 'RAJESH', name: 'Rajesh', email: 'rajesh@bigbossprotocol.com' },
+    ANITA: { id: 'ANITA', name: 'Anita', email: 'anita@bigbossprotocol.com' },
+    SURESH: { id: 'SURESH', name: 'Suresh', email: 'suresh@bigbossprotocol.com' },
+  },
+};
+
+// ============================================
+// RBAC STATE MANAGEMENT
+// ============================================
+
+const RBACState = {
+  currentUser: null,
+  currentRole: null,
+  permissions: new Set(),
+  isAuthenticated: false,
+  sessionStart: null,
+  
+  // Initialize from storage or defaults
+  init() {
+    const saved = this.loadFromStorage();
+    if (saved && saved.role && RBAC_CONFIG.ROLES[saved.role]) {
+      this.currentRole = saved.role;
+      this.currentUser = saved.user || 'AKSHAYA';
+    } else {
+      // Default to BIG BOSS for demo
+      this.currentRole = 'BIG_BOSS';
+      this.currentUser = 'AKSHAYA';
+    }
+    this.sessionStart = Date.now();
+    this.isAuthenticated = true;
+    this.updatePermissions();
+    this.saveToStorage();
+  },
+  
+  // Update permissions based on current role
+  updatePermissions() {
+    const role = RBAC_CONFIG.ROLES[this.currentRole];
+    if (!role) {
+      this.permissions.clear();
+      return;
+    }
+    this.permissions = new Set(role.permissions);
+  },
+  
+  // Switch role (demo mode)
+  switchRole(roleId, userId) {
+    if (!RBAC_CONFIG.ROLES[roleId]) {
+      throw new Error('Invalid role: ' + roleId);
+    }
+    
+    const previousRole = this.currentRole;
+    this.currentRole = roleId;
+    this.currentUser = userId || this.currentUser;
+    this.updatePermissions();
+    this.saveToStorage();
+    
+    // Log the role switch
+    this.logAuditEvent('ROLE_SWITCH', {
+      previousRole,
+      newRole: roleId,
+      userId: this.currentUser,
+      result: 'ALLOWED',
+    });
+    
+    return {
+      previousRole,
+      newRole: roleId,
+      userId: this.currentUser,
+    };
+  },
+  
+  // Permission check
+  hasPermission(permission) {
+    if (!this.isAuthenticated) return false;
+    if (this.currentRole === 'BIG_BOSS') return true; // Big Boss has all permissions
+    return this.permissions.has(permission);
+  },
+  
+  // Check multiple permissions (all must be present)
+  hasAllPermissions(...permissions) {
+    return permissions.every(p => this.hasPermission(p));
+  },
+  
+  // Check if user has any of the permissions
+  hasAnyPermission(...permissions) {
+    return permissions.some(p => this.hasPermission(p));
+  },
+  
+  // Require permission - executes action if permitted
+  requirePermission(permission, action, fallback) {
+    if (!this.hasPermission(permission)) {
+      this.logAuditEvent('UNAUTHORIZED_ACTION_ATTEMPT', {
+        attemptedPermission: permission,
+        userId: this.currentUser,
+        role: this.currentRole,
+        result: 'DENIED',
+      });
+      this.showAccessDenied(permission);
+      return false;
+    }
+    return action();
+  },
+  
+  // Role checks
+  hasRole(roleId) {
+    return this.currentRole === roleId;
+  },
+  
+  isBigBoss() {
+    return this.currentRole === 'BIG_BOSS';
+  },
+  
+  isReadOnly() {
+    const role = RBAC_CONFIG.ROLES[this.currentRole];
+    return role && role.isReadOnly;
+  },
+  
+  // Page access check
+  canAccessPage(pageId) {
+    const requiredPermission = RBAC_CONFIG.PAGE_PERMISSIONS[pageId];
+    if (!requiredPermission) return true; // No permission required
+    return this.hasPermission(requiredPermission);
+  },
+  
+  // Get current user info
+  getCurrentUser() {
+    return RBAC_CONFIG.OPERATORS[this.currentUser] || { id: this.currentUser, name: this.currentUser };
+  },
+  
+  getCurrentRole() {
+    return RBAC_CONFIG.ROLES[this.currentRole] || null;
+  },
+  
+  // Get role by id
+  getRole(roleId) {
+    return RBAC_CONFIG.ROLES[roleId] || null;
+  },
+  
+  // Get all available roles
+  getAvailableRoles() {
+    return Object.values(RBAC_CONFIG.ROLES);
+  },
+  
+  // Get permissions for a role
+  getRolePermissions(roleId) {
+    const role = RBAC_CONFIG.ROLES[roleId];
+    if (!role) return [];
+    return role.permissions.map(p => ({
+      permission: p,
+      description: RBAC_CONFIG.PERMISSIONS[p] || '',
+      allowed: this.permissions.has(p),
+    }));
+  },
+  
+  // Storage
+  saveToStorage() {
+    try {
+      localStorage.setItem(RBAC_CONFIG.STORAGE_KEY, JSON.stringify({
+        role: this.currentRole,
+        user: this.currentUser,
+        sessionStart: this.sessionStart,
+      }));
+    } catch (e) {
+      console.warn('RBAC: Could not save to localStorage', e);
+    }
+  },
+  
+  loadFromStorage() {
+    try {
+      const data = localStorage.getItem(RBAC_CONFIG.STORAGE_KEY);
+      return data ? JSON.parse(data) : null;
+    } catch (e) {
+      return null;
+    }
+  },
+  
+  // Demo mode - switch role from UI
+  switchDemoRole(roleId) {
+    const userId = this.currentUser; // Keep same user, just change role
+    return this.switchRole(roleId, userId);
+  },
+  
+  // Log audit event
+  logAuditEvent(eventType, details) {
+    const auditLog = this.getAuditLog();
+    auditLog.unshift({
+      timestamp: now(),
+      eventType,
+      userId: this.currentUser,
+      userName: RBAC_CONFIG.OPERATORS[this.currentUser]?.name || this.currentUser,
+      role: this.currentRole,
+      details: details,
+      result: details.result || 'ALLOWED',
+    });
+    // Keep last 200 audit entries
+    if (auditLog.length > 200) {
+      auditLog.length = 200;
+    }
+    try {
+      localStorage.setItem('bbcc_audit_log_v1', JSON.stringify(auditLog));
+    } catch (e) {
+      console.warn('RBAC: Could not save audit log', e);
+    }
+    
+    // Also update the main app log
+    if (details.result === 'DENIED') {
+      log('SECURITY ALERT', `${this.getCurrentRole().name} ATTEMPTED ${details.attemptedPermission || eventType}`);
+    } else {
+      log(eventType, `${this.getCurrentRole().name} · ${details.detail || 'Operation completed'}`);
+    }
+  },
+  
+  getAuditLog() {
+    try {
+      const data = localStorage.getItem('bbcc_audit_log_v1');
+      return data ? JSON.parse(data) : [];
+    } catch (e) {
+      return [];
+    }
+  },
+  
+  // Show access denied modal
+  showAccessDenied(permission) {
+    const role = this.getCurrentRole();
+    const requiredRole = this.findRequiredRole(permission);
+    
+    modAccessDenied({
+      currentRole: role.name,
+      requiredPermission: permission,
+      requiredRole: requiredRole?.name || 'BIG BOSS',
+      reason: this.getDenialReason(permission, role),
+    });
+  },
+  
+  findRequiredRole(permission) {
+    // Find which roles have this permission
+    for (const [roleId, role] of Object.entries(RBAC_CONFIG.ROLES)) {
+      if (role.permissions.includes(permission)) {
+        return role;
+      }
+    }
+    return RBAC_CONFIG.ROLES.BIG_BOSS;
+  },
+  
+  getDenialReason(permission, role) {
+    const reasons = {
+      'EVICT_CONTESTANT': 'Eviction authority reserved for BIG BOSS',
+      'RESET_HOUSE': 'House reset requires BIG BOSS clearance',
+      'MANAGE_ROLES': 'Role management is restricted to BIG BOSS',
+      'MANAGE_USERS': 'User management is restricted to BIG BOSS',
+      'OVERRIDE_GAME_RULE': 'Game rule override requires BIG BOSS authorization',
+      'GRANT_IMMUNITY': 'Immunity grants require BIG BOSS authorization',
+      'REVOKE_IMMUNITY': 'Immunity revocation requires BIG BOSS authorization',
+      'START_NOMINATION': 'Nomination protocol initiation requires NOMINATION OFFICER or higher',
+      'MANAGE_POINTS': 'Point management requires HOUSE MANAGER or BIG BOSS',
+      'MANAGE_TASKS': 'Task management requires TASK MASTER or higher',
+      'MANAGE_CAPTAINCY': 'Captaincy management requires CAPTAINCY OFFICER or BIG BOSS',
+      'CONTROL_CCTV': 'CCTV control requires SURVEILLANCE OFFICER or higher',
+      'MANAGE_IMMUNITY': 'Immunity management requires BIG BOSS authorization',
+      'MANAGE_NOMINATIONS': 'Nomination management requires NOMINATION OFFICER or BIG BOSS',
+    };
+    return reasons[permission] || `Permission "${permission}" not granted to ${role.name}`;
+  },
+  
+  // Check house rules (game logic validation)
+  validateHouseRule(action, targetData) {
+    // This is separate from RBAC - game rule validation
+    // Returns { allowed: boolean, reason: string }
+    
+    if (action === 'NOMINATE_CONTESTANT') {
+      if (targetData?.isImmune) {
+        return { allowed: false, reason: 'Contestant is protected by IMMUNITY PROTOCOL' };
+      }
+      if (targetData?.isEvicted) {
+        return { allowed: false, reason: 'Cannot nominate evicted contestant' };
+      }
+      if (targetData?.isNomiated) {
+        return { allowed: false, reason: 'Contestant is already nominated' };
+      }
+    }
+    
+    if (action === 'EVICT_CONTESTANT') {
+      if (targetData?.isEvicted) {
+        return { allowed: false, reason: 'Contestant is already evicted' };
+      }
+    }
+    
+    if (action === 'GRANT_IMMUNITY') {
+      if (targetData?.isEvicted) {
+        return { allowed: false, reason: 'Cannot grant immunity to evicted contestant' };
+      }
+    }
+    
+    if (action === 'ASSIGN_CAPTAIN') {
+      if (targetData?.isEvicted) {
+        return { allowed: false, reason: 'Cannot assign captaincy to evicted contestant' };
+      }
+    }
+    
+    return { allowed: true };
+  },
+  
+  // Combined permission + house rule check
+  authorizeAction(permission, action, targetData, actionFn) {
+    // First check RBAC permission
+    if (!this.hasPermission(permission)) {
+      this.logAuditEvent('UNAUTHORIZED_ACTION_ATTEMPT', {
+        attemptedPermission: permission,
+        userId: this.currentUser,
+        role: this.currentRole,
+        target: targetData?.name || 'Unknown',
+        result: 'DENIED',
+      });
+      this.showAccessDenied(permission);
+      return false;
+    }
+    
+    // Then check house rules
+    const ruleCheck = this.validateHouseRule(action, targetData);
+    if (!ruleCheck.allowed) {
+      this.logAuditEvent('HOUSE_RULE_BLOCKED', {
+        action,
+        userId: this.currentUser,
+        role: this.currentRole,
+        target: targetData?.name || 'Unknown',
+        reason: ruleCheck.reason,
+        result: 'BLOCKED',
+      });
+      return false;
+    }
+    
+    // Both checks passed - execute action
+    const result = actionFn();
+    
+    // Log success
+    this.logAuditEvent(action, {
+      userId: this.currentUser,
+      role: this.currentRole,
+      target: targetData?.name || 'System',
+      result: 'AUTHORIZED',
+      detail: targetData?.name ? `${action} - ${targetData.name.toUpperCase()}` : action,
+    });
+    
+    return result;
+  },
+};
+
+// ============================================
+// ACCESS DENIED MODAL
+// ============================================
+
+function modAccessDenied(data) {
+  const roleColor = RBAC_CONFIG.ROLE_COLORS[data.currentRole]?.primary || 'var(--mu)';
+  const requiredColor = RBAC_CONFIG.ROLE_COLORS[data.requiredRole]?.primary || 'var(--rd)';
+  
+  mod(`
+    <div class="pn" style="text-align:center;border-color:var(--rd);background:repeating-linear-gradient(45deg,rgba(224,32,60,.08) 0 10px,transparent 10px 20px),var(--pn)">
+      <div class="lb" style="color:var(--rd);margin-bottom:12px"><span class="dot r" style="animation-duration:0.5s"></span>ACCESS DENIED</div>
+      <h2 class="o" style="color:#fff;font-size:24px;letter-spacing:.2em;margin-bottom:6px">COMMAND AUTHORITY REQUIRED</h2>
+      <div class="lb" style="color:var(--mu);margin-bottom:20px">SECURITY PROTOCOL ENGAGED</div>
+      
+      <div class="g" style="text-align:left;margin:16px 0">
+        <div class="row">
+          <span class="lb" style="width:120px">CURRENT ROLE</span>
+          <span class="rbac-badge" style="background:${RBAC_CONFIG.ROLE_COLORS[data.currentRole]?.dim || 'rgba(125,138,153,.15)'};color:${roleColor};border-color:${roleColor}">
+            <span class="rbac-role-dot" style="background:${roleColor}"></span>
+            ${data.currentRole}
+          </span>
+        </div>
+        <div class="row" style="margin-top:10px">
+          <span class="lb" style="width:120px">REQUIRED PERMISSION</span>
+          <span class="rbac-badge" style="background:rgba(224,32,60,.15);color:var(--rd);border-color:var(--rd)">
+            <span class="rbac-role-dot" style="background:var(--rd)"></span>
+            ${data.requiredPermission}
+          </span>
+        </div>
+        <div class="row" style="margin-top:10px">
+          <span class="lb" style="width:120px">AUTHORITY LEVEL</span>
+          <span class="rbac-badge" style="background:rgba(217,184,106,.15);color:var(--rb-gold);border-color:var(--rb-gold)">
+            <span class="rbac-role-dot" style="background:var(--rb-gold)"></span>
+            ${data.requiredRole}
+          </span>
+        </div>
+      </div>
+      
+      ${data.reason ? `<div class="pn" style="background:rgba(224,32,60,.08);border:1px solid var(--rd);padding:10px;margin:12px 0;font-size:12px;color:#ff6a80">${data.reason}</div>` : ''}
+      
+      <div class="row" style="margin-top:16px">
+        <button class="bt" onclick="closeM()">RETURN TO COMMAND CENTER</button>
+      </div>
+    </div>
+  `, 'evm');
+}
+
+// ============================================
+// RBAC UI HELPERS
+// ============================================
+
+function rbacBadge(roleId) {
+  const role = RBAC_CONFIG.ROLES[roleId];
+  if (!role) return '';
+  const colors = RBAC_CONFIG.ROLE_COLORS[roleId];
+  return `
+    <span class="rbac-badge" style="background:${colors.dim || 'rgba(0,0,0,.3)'};color:${colors.primary};border-color:${colors.primary};padding:4px 10px">
+      <span class="rbac-role-dot" style="background:${colors.primary};box-shadow:0 0 8px ${colors.glow}"></span>
+      ${role.name}
+    </span>
+  `;
+}
+
+function rbacLockedState(title, restriction, requiredRole) {
+  const role = RBAC_CONFIG.ROLES[requiredRole];
+  const colors = role ? RBAC_CONFIG.ROLE_COLORS[requiredRole] : RBAC_CONFIG.ROLE_COLORS.BIG_BOSS;
+  
+  return `
+    <div class="pn rbac-locked-state">
+      <div style="font-size:24px;margin-bottom:8px">🔒</div>
+      <h3 class="o" style="color:var(--mu);font-size:14px;margin-bottom:4px">${title}</h3>
+      <div class="lb" style="color:var(--rd);margin:8px 0">RESTRICTED</div>
+      <div class="lb" style="color:${colors.primary}">${requiredRole} ACCESS ONLY</div>
+      <div class="lb" style="color:var(--mu);margin-top:12px;font-size:10px">${restriction}</div>
+    </div>
+  `;
+}
+
+function rbacDisabledButton(text, permission) {
+  return `<button class="bt rbac-lock" title="Requires: ${permission}" disabled>
+    <span style="margin-right:4px">🔒</span>${text}
+  </button>`;
+}
+
+function rbacPermissionTag(permission, granted) {
+  return `<span class="lb" style="color:${granted ? 'var(--cy)' : 'var(--mu)'};${granted ? 'text-shadow:0 0 6px rgba(56,225,255,.3)' : ''}">
+    ${granted ? '✓' : '✕'} ${permission}
+  </span>`;
+}
+
+// ============================================
+// AUDIT LOG PANEL
+// ============================================
+
+function auditLogPanel() {
+  const logs = RBACState.getAuditLog();
+  if (!logs.length) {
+    return `<div class="pn" style="text-align:center;padding:20px">
+      <div class="o" style="color:var(--mu)">NO AUDIT RECORDS</div>
+      <div class="lb" style="margin-top:6px">Security events will appear here</div>
+    </div>`;
+  }
+  
+  const latest = logs.slice(0, 30);
+  return `<div class="pn">
+    <div class="row" style="margin-bottom:12px">
+      <h2 class="o" style="color:var(--rd);font-size:12px">SECURITY // AUDIT STREAM</h2>
+      <span class="sp"></span>
+      <span class="lb" style="color:var(--cy)"><span class="dot"></span>LIVE</span>
+    </div>
+    <div class="rbac-perm-list">
+      ${latest.map(log => {
+        const colors = RBAC_CONFIG.ROLE_COLORS[log.role] || RBAC_CONFIG.ROLE_COLORS.VIEWER;
+        const isDenied = log.result === 'DENIED' || log.result === 'BLOCKED';
+        const isRoleSwitch = log.eventType === 'ROLE_SWITCH';
+        
+        return `<div class="lg" style="border-left-color:${isDenied ? 'var(--rd)' : isRoleSwitch ? 'var(--gd)' : 'var(--cy)'};padding:8px 10px;background:${isDenied ? 'rgba(224,32,60,.05)' : 'transparent'}">
+          <div class="row" style="margin-bottom:4px">
+            <span style="color:var(--mu);font-size:10px">${log.timestamp}</span>
+            ${isDenied ? '<span class="dot r" style="margin-left:auto"></span>' : ''}
+            ${isRoleSwitch ? '<span class="dot" style="margin-left:auto;background:var(--gd)"></span>' : ''}
+          </div>
+          <div class="row" style="font-size:11px">
+            <span class="rbac-badge" style="background:${colors.dim};color:${colors.primary};border-color:${colors.primary};font-size:9px;padding:2px 6px">
+              <span class="rbac-role-dot" style="background:${colors.primary};width:5px;height:5px"></span>
+              ${log.role}
+            </span>
+            <span style="color:${isDenied ? 'var(--rd)' : 'var(--cy)'};font-weight:600;margin-left:8px">${log.eventType}</span>
+          </div>
+          ${log.details?.target ? `<div class="lb" style="margin-top:4px;color:var(--mu)">TARGET: ${log.details.target.toUpperCase()}</div>` : ''}
+          ${log.details?.reason ? `<div class="lb" style="margin-top:2px;color:var(--rd);font-size:9px">${log.details.reason}</div>` : ''}
+          <div class="lb" style="margin-top:4px;color:${isDenied ? 'var(--rd)' : 'var(--gd)'};font-size:9px;text-transform:uppercase;letter-spacing:.1em">
+            ${isDenied ? '⚠ DENIED' : '✓ AUTHORIZED'}
+          </div>
+        </div>`;
+      }).join('')}
+    </div>
+  </div>`;
+}
+
+// ============================================
+// ACCESS CONTROL PANEL (for BIG BOSS)
+// ============================================
+
+function accessControlPanel() {
+  if (!RBACState.isBigBoss()) {
+    return rbacLockedState('ACCESS CONTROL PANEL', 'Role management is restricted to BIG BOSS', 'BIG_BOSS');
+  }
+  
+  const operators = RBAC_CONFIG.OPERATORS;
+  const roles = RBACState.getAvailableRoles();
+  
+  return `
+    <div class="pn" style="margin-bottom:14px">
+      <div class="row">
+        <h1 class="o" style="font-size:18px">SECURITY // ACCESS CONTROL</h1>
+        <span class="sp"></span>
+        <span class="lb" style="color:var(--rd)"><span class="dot r"></span>ADMIN ONLY</span>
+      </div>
+      <div class="lb" style="color:var(--mu);margin:8px 0 14px;text-transform:none;letter-spacing:.02em">Manage operators, assign roles, and monitor access</div>
+    </div>
+    
+    <div class="g g3" style="margin-bottom:14px">
+      <div class="pn">
+        <div class="lb">ACTIVE OPERATORS</div>
+        <div class="m" style="font-size:28px;color:var(--cy)">${Object.keys(operators).length}</div>
+        <div class="lb" style="margin-top:6px;color:var(--mu)">CURRENT SESSIONS</div>
+      </div>
+      <div class="pn">
+        <div class="lb">AUTHORIZED</div>
+        <div class="m" style="font-size:28px;color:var(--gd)">24</div>
+        <div class="lb" style="margin-top:6px;color:var(--mu)">TODAY</div>
+      </div>
+      <div class="pn">
+        <div class="lb">DENIED</div>
+        <div class="m" style="font-size:28px;color:var(--rd)">${RBACState.getAuditLog().filter(l => l.result === 'DENIED').length}</div>
+        <div class="lb" style="margin-top:6px;color:var(--mu)">ATTEMPTS</div>
+      </div>
+    </div>
+    
+    <div class="g">
+      <div class="pn">
+        <div class="rbac-section-title">OPERATORS</div>
+        <div class="rbac-operator-card">
+          <div class="row">
+            <div>
+              <div class="o" style="font-size:14px;color:var(--tx)">${operators.AKSHAYA.name}</div>
+              <div class="lb" style="color:var(--mu);margin-top:2px">${operators.AKSHAYA.email}</div>
+            </div>
+            <span class="rbac-badge" style="background:var(--rb-bigboss);color:#05070b;border-color:var(--rb-gold);margin-left:auto">
+              <span class="rbac-role-dot" style="background:var(--rb-gold)"></span>
+              BIG BOSS
+            </span>
+          </div>
+          <div class="row" style="margin-top:8px;font-size:10px;color:var(--mu)">
+            <span>STATUS: <span style="color:var(--gd)">● ACTIVE</span></span>
+            <span style="margin-left:auto">ACCESS: FULL COMMAND</span>
+          </div>
+        </div>
+        <div class="rbac-operator-card">
+          <div class="row">
+            <div>
+              <div class="o" style="font-size:14px;color:var(--tx)">${operators.VIKRAM.name}</div>
+              <div class="lb" style="color:var(--mu);margin-top:2px">${operators.VIKRAM.email}</div>
+            </div>
+            <span class="rbac-badge" style="background:var(--rb-housemgr);color:#05070b;border-color:var(--rb-cyan);margin-left:auto">
+              <span class="rbac-role-dot" style="background:var(--rb-cyan)"></span>
+              HOUSE MGR
+            </span>
+          </div>
+          <div class="row" style="margin-top:8px;font-size:10px;color:var(--mu)">
+            <span>STATUS: <span style="color:var(--gd)">● ACTIVE</span></span>
+          </div>
+        </div>
+        <div class="rbac-operator-card">
+          <div class="row">
+            <div>
+              <div class="o" style="font-size:14px;color:var(--tx)">${operators.PRIYA.name}</div>
+              <div class="lb" style="color:var(--mu);margin-top:2px">${operators.PRIYA.email}</div>
+            </div>
+            <span class="rbac-badge" style="background:var(--rb-survoff);color:#05070b;border-color:var(--rb-blue);margin-left:auto">
+              <span class="rbac-role-dot" style="background:var(--rb-blue)"></span>
+              SURV. OFF
+            </span>
+          </div>
+          <div class="row" style="margin-top:8px;font-size:10px;color:var(--mu)">
+            <span>STATUS: <span style="color:var(--gd)">● ACTIVE</span></span>
+          </div>
+        </div>
+      </div>
+      
+      <div class="pn">
+        <div class="rbac-section-title">CURRENT ROLE</div>
+        <div class="pn" style="text-align:center;padding:16px">
+          ${rbacBadge(RBACState.currentRole)}
+          <div class="lb" style="margin-top:8px;color:var(--mu)">${RBACState.getCurrentRole()?.description || ''}</div>
+          <div class="row" style="margin-top:12px;gap:6px;justify-content:center">
+            ${['BIG_BOSS', 'HOUSE_MANAGER', 'NOMINATION_OFFICER', 'SURVEILLANCE_OFFICER', 'TASK_MASTER', 'CAPTAINCY_OFFICER', 'VIEWER'].map(rid => {
+              const role = RBAC_CONFIG.ROLES[rid];
+              const colors = RBAC_CONFIG.ROLE_COLORS[rid];
+              const isActive = RBACState.currentRole === rid;
+              return `<button class="bt ${isActive ? 'p' : ''}" style="font-size:9px;padding:6px 8px;${isActive ? `border-color:${colors.primary};color:${colors.primary};box-shadow:0 0 12px ${colors.glow}` : ''}"
+                onclick="RBACState.switchDemoRole('${rid}');render();">
+                ${role.name}
+              </button>`;
+            }).join('')}
+          </div>
+        </div>
+      </div>
+    </div>
+    
+    <div class="g" style="margin-top:14px">
+      <div class="pn">
+        <div class="rbac-section-title">ROLE DISTRIBUTION</div>
+        <div class="g g3">
+          ${roles.map(role => {
+            const colors = RBAC_CONFIG.ROLE_COLORS[role.id];
+            return `<div class="pn" style="text-align:center;padding:12px">
+              <div class="rbac-role-dot" style="background:${colors.primary};box-shadow:0 0 10px ${colors.glow};margin:0 auto 8px;width:16px;height:16px"></div>
+              <div class="o" style="font-size:11px;color:${colors.primary}">${role.name}</div>
+              <div class="m" style="font-size:24px;color:var(--tx);margin:6px 0">${Math.floor(Math.random() * 5) + 1}</div>
+              <div class="lb" style="color:var(--mu);font-size:9px">OPERATORS</div>
+            </div>`;
+          }).join('')}
+        </div>
+      </div>
+      
+      <div class="pn">
+        <div class="rbac-section-title">CURRENT PERMISSIONS</div>
+        <div class="rbac-perm-list">
+          ${RBACState.getRolePermissions(RBACState.currentRole).map(p => rbacPermissionTag(p.permission, p.allowed)).join('')}
+        </div>
+      </div>
+    </div>
+  `;
+}
+
+// ============================================
+// Role Switcher Component (demo mode)
+// ============================================
+
+function roleSwitcher() {
+  const roles = RBACState.getAvailableRoles();
+  const currentRole = RBACState.getCurrentRole();
+  
+  return `
+    <div class="rbac-panel" style="display:flex;align-items:center;gap:10px">
+      <div class="rbac-section-title" style="margin:0;flex:none">DEMO AUTHORITY</div>
+      <select id="rbac-role-select" style="background:#0b0f16;border:1px solid var(--ln);color:var(--tx);padding:6px 10px;font:11px 'JetBrains Mono';cursor:pointer;min-width:140px"
+        onchange="const r=this.value;RBACState.switchDemoRole(r);render();">
+        ${roles.map(r => `<option value="${r.id}" style="color:${RBAC_CONFIG.ROLE_COLORS[r.id]?.primary || 'var(--tx)'};${r.id === currentRole?.id ? 'font-weight:600' : ''}" ${r.id === currentRole?.id ? 'selected' : ''}>
+          ${r.name}
+        </option>`).join('')}
+      </select>
+      <span style="font:10px 'JetBrains Mono';color:var(--mu);text-transform:uppercase;letter-spacing:.1em">Current:</span>
+      <span class="rbac-badge" style="background:${RBAC_CONFIG.ROLE_COLORS[currentRole?.id]?.dim || 'rgba(125,138,153,.15)'};color:${RBAC_CONFIG.ROLE_COLORS[currentRole?.id]?.primary || 'var(--rb-silver)'};border-color:${RBAC_CONFIG.ROLE_COLORS[currentRole?.id]?.primary || 'var(--rb-silver)'};font-size:9px;padding:3px 8px">
+        <span class="rbac-role-dot" style="background:${RBAC_CONFIG.ROLE_COLORS[currentRole?.id]?.primary || 'var(--rb-silver)'};box-shadow:0 0 6px ${RBAC_CONFIG.ROLE_COLORS[currentRole?.id]?.glow || 'rgba(125,138,153,.3)'}"></span>
+        ${currentRole?.accessLevel || 'UNKNOWN'}
+      </span>
+    </div>
+  `;
+}
+
+// ============================================
+// RBAC GUARD WRAPPERS FOR ACTIONS
+// ============================================
+
+// Permission checker for UI rendering
+function can(permission) {
+  return RBACState.hasPermission(permission);
+}
+
+// Action wrapper - checks permission before executing
+function guard(permission, actionFn, denyMessage) {
+  if (!RBACState.hasPermission(permission)) {
+    RBACState.showAccessDenied(permission);
+    toast('ACCESS DENIED: ' + (denyMessage || permission), 1);
+    return false;
+  }
+  return actionFn();
+}
+
+// Mutation wrapper - checks permission and logs
+function mutate(permission, actionName, actionFn, targetName) {
+  if (!RBACState.hasPermission(permission)) {
+    RBACState.logAuditEvent('UNAUTHORIZED_ACTION_ATTEMPT', {
+      attemptedPermission: permission,
+      userId: RBACState.currentUser,
+      role: RBACState.currentRole,
+      target: targetName,
+      result: 'DENIED',
+    });
+    RBACState.showAccessDenied(permission);
+    toast('ACCESS DENIED', 1);
+    return false;
+  }
+  
+  const result = actionFn();
+  
+  RBACState.logAuditEvent(actionName, {
+    userId: RBACState.currentUser,
+    role: RBACState.currentRole,
+    target: targetName,
+    result: 'ALLOWED',
+    detail: targetName ? `${actionName} - ${targetName.toUpperCase()}` : actionName,
+  });
+  
+  return result;
+}
+
+// ============================================
+// INITIALIZE RBAC
+// ============================================
+
+RBACState.init();
+
+// ============================================
+// EXISTING APPLICATION CODE
+// ============================================
+
 const K='bbcc_v3',TEAMS=['Phoenix','Titans','Wolves'];
 const seedC=[['Aarav','Phoenix',870],['Riya','Titans',810],['Kabir','Wolves',760],['Ananya','Phoenix',720],['Vihaan','Titans',680],['Meera','Wolves',640],['Arjun','Phoenix',590],['Tara','Titans',530],['Ishaan','Wolves',470],['Naina','Phoenix',420]];
 const seed=()=>({c:seedC.map((x,i)=>({id:i+1,name:x[0],team:x[1],pts:x[2],ev:0,imm:['Riya','Aarav'].includes(x[0]),nom:['Kabir','Tara','Ishaan'].includes(x[0]),cap:x[0]=='Riya',tr:0})),
@@ -145,6 +1196,7 @@ nominations(){return `<h1>NOMINATION PROTOCOL</h1><div class="g g3" style="margi
 immunity(){return `<h1>IMMUNITY CONTROL</h1><div class="g g3" style="margin-top:14px">${act().map(c=>`<div class="pn" style="${c.imm?'border-color:var(--cy);box-shadow:0 0 24px rgba(56,225,255,.12)':''}"><div class="o" style="font-size:14px">${c.imm?'🛡 ':''}${c.name}</div><div class="lb" style="margin:6px 0 10px">${c.imm?'PROTECTED':'EXPOSED'}</div>${c.imm?`<button class="bt d" onclick="immune(${c.id},0)">REVOKE IMMUNITY</button>`:`<button class="bt p" onclick="immune(${c.id},1)">GRANT IMMUNITY</button>`}</div>`).join('')||empty('NO ACTIVE CONTESTANTS','')}</div>`},
 captaincy(){const c=act().find(x=>x.cap);return `<h1>CAPTAINCY</h1><div class="pn cap" style="margin-top:14px"><div class="lb" style="color:var(--gd)">CURRENT HOUSE CAPTAIN</div><div class="o" style="font-size:40px;color:var(--gd);text-shadow:0 0 24px rgba(217,184,106,.5);margin:14px 0">👑 ${c?c.name:'VACANT'}</div><button class="bt y" onclick="capMod()">CHANGE CAPTAIN</button></div>`},
 announcements(){return `<h1>BIG BOSS BROADCAST</h1><div class="pn" style="margin:14px 0"><textarea id="an" rows="3" placeholder="Enter announcement…"></textarea><div class="row" style="margin-top:10px"><button class="bt d" onclick="bcast()">TRANSMIT</button></div></div><h2>HISTORY</h2>${S.ann.length?S.ann.map(a=>`<div class="pn" style="margin-bottom:8px"><div class="lb">${a.at} · BIG BOSS</div>“${a.t.replace(/</g,'&lt;')}”</div>`).join(''):empty('NO TRANSMISSIONS','No announcements yet.')}`},
+accesscontrol(){return accessControlPanel()},
 syslog(){return `<div class="row"><h1>SYSTEM LOG</h1><span class="sp"></span><button class="bt d" onclick="resetAsk()">RESET HOUSE</button></div><div class="pn" style="margin-top:14px">${logHtml()}</div>`}};
 function pointsPanel(){return `<div class="pn" style="margin-top:14px"><h2>POINT SYSTEM</h2><div class="g g6"><select id="pc">${act().map(c=>`<option value="${c.id}">${c.name}`).join('')}</select><select id="pa"><option value="1">ADD POINTS<option value="-1">DEDUCT POINTS</select><select id="pm"><option>10<option>25<option>50<option>100<option value="x">CUSTOM</select><input id="px" type="number" placeholder="Custom amount"><select id="pr"><option>Task reward<option>Task penalty<option>Rule violation<option>Special bonus<option>Big Boss decision</select><button class="bt p" onclick="applyPts()">EXECUTE</button></div></div>`}
 function applyPts(){const m=$('#pm').value,n=m=='x'?+$('#px').value:+m;if(!n||n<0)return toast('Enter a valid amount',1);if(!$('#pc').value)return toast('No contestant',1);addPts($('#pc').value,n*$('#pa').value,$('#pr').value)}
@@ -164,11 +1216,85 @@ return `<div class="pn">${tl(1,'POINT DISTRIBUTION')}<svg viewBox="0 0 300 140" 
 const logHtml=()=>S.log.length?S.log.map(l=>`<div class="lg"><span style="color:var(--mu)">${l.t}</span><br><b>${l.a}</b><br>${l.d}</div>`).join(''):empty('NO EVENTS','Actions will appear here.');
 function panel(){const c=C(sel);if(!c)return '';const b=n=>`<button class="bt ${n>0?'p':'d'}" onclick="addPts(${c.id},${n},'Big Boss decision')" ${c.ev?'disabled':''}>${n>0?'+':''}${n}</button>`;mod(`<div class="row"><div class="av">${c.name[0]}</div><div><div class="o" style="font-size:18px">${c.name}</div><div class="lb">${c.team} · RANK #${ranks()[c.id]||'—'}</div></div></div><div class="m" style="font-size:28px;margin:12px 0">${c.pts} PTS</div><div>${bdg(c)}</div><div class="row" style="margin-top:10px">${mt(c)}${mic(c.id)?`<button class="bt d" onclick="micFix(${c.id})">MIC CHECK</button>`:''}</div><div class="lb" style="margin:14px 0 6px">COMMANDS</div><div class="row">${[10,25,50].map(b).join('')}</div><div class="row" style="margin-top:6px">${[-10,-25,-50].map(b).join('')}</div><div class="row" style="margin-top:12px"><button class="bt d" onclick="nominate(${c.id})" ${c.ev?'disabled':''}>NOMINATE</button><button class="bt p" onclick="immune(${c.id},1)" ${c.ev?'disabled':''}>GRANT IMMUNITY</button><button class="bt" onclick="immune(${c.id},0)" ${c.ev?'disabled':''}>REVOKE IMMUNITY</button><button class="bt y" onclick="capt(${c.id})" ${c.ev?'disabled':''}>MAKE CAPTAIN</button><button class="bt d" onclick="evictAsk(${c.id})">EVICT</button></div><button class="bt" style="margin-top:14px" onclick="sel=null;closeM()">CLOSE</button>`)}
 // SHELL
-const NAV=[['overview','◆ OVERVIEW'],['cctv','▤ SURVEILLANCE'],['alerts','⚠ HOUSE ALERTS'],['contestants','◇ CONTESTANTS'],['leaderboard','◈ LEADERBOARD'],['tasks','▣ TASK CONTROL'],['nominations','⚠ NOMINATIONS'],['immunity','⬡ IMMUNITY'],['captaincy','♛ CAPTAINCY'],['announcements','◉ ANNOUNCEMENTS'],['syslog','≡ SYSTEM LOG']];
+// Role-based navigation - dynamically filtered by permissions
+function getRoleBasedNav() {
+  const navItems = [
+    { id: 'overview', label: '◆ OVERVIEW', permission: 'VIEW_DASHBOARD' },
+    { id: 'cctv', label: '▤ SURVEILLANCE', permission: 'VIEW_CCTV' },
+    { id: 'alerts', label: '⚠ HOUSE ALERTS', permission: 'VIEW_ALERTS' },
+    { id: 'contestants', label: '◇ CONTESTANTS', permission: 'VIEW_CONTESTANTS' },
+    { id: 'leaderboard', label: '◈ LEADERBOARD', permission: 'VIEW_LEADERBOARD' },
+    { id: 'tasks', label: '▣ TASK CONTROL', permission: 'VIEW_TASKS' },
+    { id: 'nominations', label: '⚠ NOMINATIONS', permission: 'VIEW_NOMINATIONS' },
+    { id: 'immunity', label: '⬡ IMMUNITY', permission: 'VIEW_IMMUNITY' },
+    { id: 'captaincy', label: '♛ CAPTAINCY', permission: 'VIEW_CAPTAINCY' },
+    { id: 'announcements', label: '◉ ANNOUNCEMENTS', permission: 'VIEW_ANNOUNCEMENTS' },
+    { id: 'syslog', label: '≡ SYSTEM LOG', permission: 'VIEW_SYSTEM_LOG' },
+    { id: 'accesscontrol', label: '🔐 ACCESS CONTROL', permission: 'VIEW_ACCESS_CONTROL' },
+  ];
+  
+  // Filter by permission
+  return navItems.filter(item => RBACState.hasPermission(item.permission));
+}
+
+const NAV=getRoleBasedNav();
 function render(keep){const a=act(),cap=a.find(c=>c.cap);
-$('#top').innerHTML=`<svg width="30" height="30" viewBox="0 0 30 30"><circle cx="15" cy="15" r="13" fill="none" stroke="var(--cy)" stroke-width=".8" stroke-dasharray="3 2"/><text x="15" y="19" text-anchor="middle" fill="var(--cy)" font-family="Orbitron" font-weight="900" font-size="10">BB</text></svg><div><div class="o" style="font-size:13px">BIG BOSS // COMMAND CENTER</div><div class="lb hm">HOUSE CONTROL SYSTEM · LIVE</div></div><span class="lb"><span class="dot r"></span>LIVE</span><span class="m hm" id="clk"></span><span class="lb hm">HOUSE: ACTIVE</span><span class="lb hm" style="color:var(--gd)">CAPTAIN: ${cap?cap.name.toUpperCase():'—'}</span><span class="lb hm">ACTIVE ${a.length} · NOM ${a.filter(c=>c.nom).length} · IMMUNE ${a.filter(c=>c.imm).length}</span><span class="sp"></span><button class="bt d" onclick="evictPick()" aria-label="Eviction protocol">⚠<span class="hm"> EVICTION PROTOCOL</span></button>`;
-$('#side').innerHTML=NAV.map(n=>`<button class="nav ${view==n[0]?'on':''}" onclick="view='${n[0]}';render()">${n[1].slice(0,1)}<span>${n[1].slice(2)}</span></button>`).join('')+`<div class="sp"></div><div class="lb"><span class="dot"></span>SYSTEM ONLINE<br>UPTIME 99.98%</div>`;
-$('#logp').innerHTML=`<h2>LIVE SYSTEM LOG</h2>${logHtml()}`;
+const currentRole = RBACState.getCurrentRole();
+const roleColors = RBAC_CONFIG.ROLE_COLORS[currentRole?.id] || RBAC_CONFIG.ROLE_COLORS.VIEWER;
+
+$('#top').innerHTML=`<svg width="30" height="30" viewBox="0 0 30 30"><circle cx="15" cy="15" r="13" fill="none" stroke="var(--cy)" stroke-width=".8" stroke-dasharray="3 2"/><text x="15" y="19" text-anchor="middle" fill="var(--cy)" font-family="Orbitron" font-weight="900" font-size="10">BB</text></svg>
+<div>
+  <div class="o" style="font-size:13px">BIG BOSS // COMMAND CENTER</div>
+  <div class="lb hm">HOUSE CONTROL SYSTEM · LIVE</div>
+</div>
+
+<!-- RBAC Role Badge -->
+<div style="display:flex;align-items:center;gap:8px;margin:0 8px;padding:4px 8px;background:${roleColors.dim || 'rgba(0,0,0,.3)'};border:1px solid ${roleColors.primary};border-radius:4px">
+  <span class="rbac-role-dot" style="background:${roleColors.primary};box-shadow:0 0 8px ${roleColors.glow};width:10px;height:10px"></span>
+  <div style="font:600 10px 'JetBrains Mono';letter-spacing:.12em;text-transform:uppercase;color:${roleColors.primary}">
+    <div style="font-size:9px;color:var(--mu)">ROLE</div>
+    <div style="font-size:11px">${currentRole?.name || 'UNKNOWN'}</div>
+  </div>
+</div>
+
+<span class="lb"><span class="dot r"></span>LIVE</span>
+<span class="m hm" id="clk"></span>
+<span class="lb hm">HOUSE: ACTIVE</span>
+<span class="lb hm" style="color:var(--gd)">CAPTAIN: ${cap?cap.name.toUpperCase():'—'}</span>
+<span class="lb hm">ACTIVE ${a.length} · NOM ${a.filter(c=>c.nom).length} · IMMUNE ${a.filter(c=>c.imm).length}</span>
+
+<!-- Role Switcher (Demo) -->
+<div style="margin-left:auto;display:flex;align-items:center;gap:8px;padding-left:12px;border-left:1px solid var(--ln)">
+  <div style="font:10px 'JetBrains Mono';color:var(--mu);text-transform:uppercase;letter-spacing:.1em">DEMO AUTHORITY</div>
+  <select id="rbac-role-select" style="background:#0b0f16;border:1px solid var(--ln);color:var(--tx);padding:4px 8px;font:10px 'JetBrains Mono';cursor:pointer;min-width:120px"
+    onchange="const r=this.value;RBACState.switchDemoRole(r);render();">
+    ${RBACState.getAvailableRoles().map(r => `<option value="${r.id}" style="color:${RBAC_CONFIG.ROLE_COLORS[r.id]?.primary || 'var(--tx)'};${r.id === currentRole?.id ? 'font-weight:600' : ''}" ${r.id === currentRole?.id ? 'selected' : ''}>
+      ${r.name}
+    </option>`).join('')}
+  </select>
+  <span class="rbac-badge" style="background:${roleColors.dim || 'rgba(125,138,153,.15)'};color:${roleColors.primary};border-color:${roleColors.primary};font-size:9px;padding:3px 8px">
+    <span class="rbac-role-dot" style="background:${roleColors.primary};box-shadow:0 0 6px ${roleColors.glow}"></span>
+    ${currentRole?.accessLevel || 'UNKNOWN'}
+  </span>
+</div>
+
+<span class="sp"></span>
+<button class="bt d" onclick="evictPick()" aria-label="Eviction protocol" ${!RBACState.hasPermission('EVICT_CONTESTANT') ? 'disabled style="opacity:0.4;cursor:not-allowed"' : ''}>⚠<span class="hm"> EVICTION PROTOCOL</span></button>`;
+
+$('#side').innerHTML=NAV.map(n=>`<button class="nav ${view==n[0]?'on':''}" onclick="view='${n[0]}';render()">${n[1].slice(0,1)}<span>${n[1].slice(2)}</span></button>`).join('')+`<div class="sp"></div>
+<div class="lb" style="color:${roleColors.primary};border-top:1px solid var(--ln);padding-top:8px;margin-top:4px">
+  <div style="font-size:9px;color:var(--mu)">CURRENT OPERATOR</div>
+  <div style="font:600 10px 'JetBrains Mono';color:${roleColors.primary}">${RBACState.getCurrentUser().name}</div>
+  <div style="font-size:9px;color:var(--mu);margin-top:2px">STATUS: <span style="color:var(--gd)">● AUTHORIZED</span></div>
+</div>
+<div class="lb"><span class="dot" style="background:${roleColors.primary};box-shadow:0 0 6px ${roleColors.glow}"></span>SYSTEM ONLINE<br>UPTIME 99.98%</div>`;
+
+// Show audit log in sidebar for roles that have access
+if (RBACState.hasPermission('VIEW_AUDIT_LOG') && view !== 'syslog') {
+  $('#logp').innerHTML = `<h2>SECURITY // AUDIT</h2>${auditLogPanel()}`;
+} else {
+  $('#logp').innerHTML = `<h2>LIVE SYSTEM LOG</h2>${logHtml()}`;
+}
 if(!keep||!$('#sq')){$('#main').innerHTML=V[view]();}else{const g=$('#main .g3');if(g){const t=document.createElement('div');t.innerHTML=V[view]();const n=t.querySelector('.g3'),e=t.querySelector('.pn');g.replaceWith(n||e)}}
 bindCams();tmDraw();document.querySelectorAll('[data-n]').forEach(e=>{const n=+e.dataset.n,s=e.textContent;let i=0;const p=s.replace(/[\d]+/,'§'),st=setInterval(()=>{i++;e.textContent=p.replace('§',Math.round(n*i/12));if(i>=12)clearInterval(st)},30)});
 if(sel&&!keep)panel()}
